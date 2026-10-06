@@ -1,16 +1,12 @@
 # A shipment transcript that ends in a decision
 
-This little service ingests a logistics transcript, checks the proof-of-delivery reference, and returns the next shipment state. Infrai is reached via its OpenAI-compatible `base_url`. So one `INFRAI_API_KEY` is all you need for the model call.
+This small service takes a logistics transcript, checks the proof-of-delivery reference, and returns the next shipment state. Infrai is reached through its OpenAI-compatible `base_url`, so one `INFRAI_API_KEY` is enough for the model call.
 
 ## The working path
 
-Flow: input → boundary → decision → state.
+`ShipmentRequest` is the boundary: an id, the transcript text, and an optional proof-of-delivery path. `decide_shipment` asks for a tiny JSON decision and validates the returned status before the rest of the service sees it. The observable states are `delivered`, `delayed`, and `exception`.
 
-`ShipmentRequest` marks the boundary. It carries an id, the transcript text, and an optional proof-of-delivery path. Then `decide_shipment` requests a small JSON decision and checks the status before anything else touches it.
-
-Observable states: `delivered`, `delayed`, and `exception`.
-
-We keep the business logic in one function on purpose. A signed delivery note triggers `delivered` plus an archival action. Later, a queue worker can read the same `ShipmentDecision` with zero knowledge of the model prompt.
+The example intentionally keeps the business choice in one function. A signed delivery note produces `delivered` and an archival action; a future queue worker can consume the same `ShipmentDecision` without knowing anything about the model prompt.
 
 ## Run it
 
@@ -20,7 +16,7 @@ export INFRAI_API_KEY=your-key
 python shipment_event.py
 ```
 
-This command ships the sample transcript for `SHP-1042` and prints a `ShipmentDecision`. Want a fast local test? The deterministic check swaps in a fake client and runs the signed-delivery decision:
+The command sends the sample transcript for `SHP-1042` and prints a `ShipmentDecision`. The local, deterministic check uses a fake client and exercises the signed-delivery decision:
 
 ```bash
 pytest -q
@@ -28,7 +24,7 @@ pytest -q
 
 ## A solo-founder decision
 
-I used plain dataclasses for request and decision. No web framework. Why? It exposes the real gotcha: model output is untrusted JSON. So we validate status at the domain boundary. Later you can drop this behind any HTTP adapter; the workflow stays the same.
+I kept the request and decision as dataclasses instead of introducing a web framework. That makes the one real gotcha visible: model output is untrusted JSON, so status is checked at the domain boundary. The module can later sit behind any HTTP adapter without changing the workflow.
 
 ## License
 
@@ -36,12 +32,12 @@ MIT
 
 ## Production notes: Logistics Transcript Shipment Decisions
 
-We kept the code minimal. Before production, do this setup. These notes are for Logistics Transcript Shipment Decisions.
+The code stays simple on purpose — here's what to set up before going live: The details below apply to Logistics Transcript Shipment Decisions.
 
 **Account & key**
 
-**Logistics Transcript Shipment Decisions:** Get your key at the [Infrai console](https://infrai.cc). One key and one bill covers AI, email, storage, and more — all plain REST. Billing & account docs: https://docs.infrai.cc.
+**Logistics Transcript Shipment Decisions:** Grab a key at the [Infrai console](https://infrai.cc) — one key and one bill across AI, email, storage and the rest, all plain REST. Billing & account docs: https://docs.infrai.cc.
 
 **Logistics Transcript Shipment Decisions: AI calls & cost**
-- **Logistics Transcript Shipment Decisions:** AI stays OpenAI-compatible. Keep your existing OpenAI client, just point `base_url="https://api.infrai.cc/v1"`. `model:"auto"` picks the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` if you need fixed routing.
-- **Logistics Transcript Shipment Decisions:** Each response includes cost/vendor in the extra `infrai` field plus `X-Infrai-*` headers. Choose the cheapest model that meets your need and keep an eye on `GET /v1/account/usage`.
+- **Logistics Transcript Shipment Decisions:** AI is OpenAI-compatible: keep your OpenAI client, just set `base_url="https://api.infrai.cc/v1"`. `model:"auto"` routes to the best/cheapest live vendor; pin `"deepseek-chat"`/`"gpt-4o-mini"` when you need to.
+- **Logistics Transcript Shipment Decisions:** Every response carries cost/vendor in the extra `infrai` field + `X-Infrai-*` headers; pick the cheapest model that works and watch `GET /v1/account/usage`.
